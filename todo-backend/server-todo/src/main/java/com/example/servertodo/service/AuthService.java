@@ -30,13 +30,23 @@ public class AuthService {
     }
 
     private void createAndSendOtp(AppUser user) {
+        Optional<EmailOtp> lastOtp = emailOtpRepo.findTopByUserOrderByIdDesc(user);
+
+        if (lastOtp.isPresent()) {
+            long createdTime = lastOtp.get().getExpiryTime().getTime() - (5 * 60 * 1000);
+            long now = System.currentTimeMillis();
+
+            if (now - createdTime < 30_000) {
+                throw new RuntimeException("Please wait 30 seconds before requesting new OTP");
+            }
+            emailOtpRepo.deleteByUser(user);
+        }
         String otp = generateOtp();
         long expiry = System.currentTimeMillis() + (5 * 60 * 1000);
 
         EmailOtp emailOtp = EmailOtp.builder()
                 .otpCode(otp)
                 .expiryTime(new Timestamp(expiry))
-                .isUsed(false)
                 .user(user)
                 .build();
 
@@ -86,7 +96,7 @@ public class AuthService {
         }
 
         EmailOtp emailOtp = emailOtpRepo
-                .findTopByUserAndIsUsedFalseOrderByIdDesc(user)
+                .findTopByUserOrderByIdDesc(user)
                 .orElseThrow(() -> new RuntimeException("OTP not found"));
 
         if (emailOtp.getExpiryTime()
@@ -99,6 +109,6 @@ public class AuthService {
         }
 
         user.setIsVerify(true);
-        emailOtp.setIsUsed(true);
+        emailOtpRepo.deleteByUser(user);
     }
 }

@@ -9,6 +9,7 @@ import java.util.Optional;
 
 @Repository
 public interface EmailOtpRepository extends JpaRepository<EmailOtp, Integer> {
+    void deleteByUser(AppUser user);
 
-    Optional<EmailOtp> findTopByUserAndIsUsedFalseOrderByIdDesc(AppUser user);
+    Optional<EmailOtp> findTopByUserOrderByIdDesc(AppUser user);
 }

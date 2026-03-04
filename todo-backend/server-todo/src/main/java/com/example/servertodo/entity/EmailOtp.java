@@ -23,9 +23,6 @@ public class EmailOtp {
     @Column(name = "expiry_time", nullable = false)
     private Timestamp expiryTime;
 
-    @Column(name = "is_used", nullable = false)
-    private Boolean isUsed = false;
-
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private AppUser user;
