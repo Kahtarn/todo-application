@@ -1,11 +1,15 @@
 package com.example.servertodo.service;
 
+import com.example.servertodo.dto.auth.login.LoginRequest;
+import com.example.servertodo.dto.auth.login.LoginResponse;
 import com.example.servertodo.dto.auth.register.EmailVerifyRequest;
 import com.example.servertodo.dto.auth.register.RegisterRequest;
 import com.example.servertodo.entity.AppUser;
 import com.example.servertodo.entity.EmailOtp;
+import com.example.servertodo.entity.RefreshToken;
 import com.example.servertodo.repository.AppUserRepository;
 import com.example.servertodo.repository.EmailOtpRepository;
+import com.example.servertodo.repository.RefreshTokenRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,12 +28,17 @@ public class AuthService {
     private EmailOtpRepository emailOtpRepo;
     @Autowired
     private JavaMailService javaMailService;
+    @Autowired
+    private JwtService jwtService;
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepo;
 
+    //Register
     private String generateOtp() {
         return String.valueOf((int)(Math.random() * 900000) + 100000);
     }
 
-    private void createAndSendOtp(AppUser user) {
+    private void sendOtpToRegister(AppUser user) {
         Optional<EmailOtp> lastOtp = emailOtpRepo.findTopByUserOrderByIdDesc(user);
 
         if (lastOtp.isPresent()) {
@@ -64,7 +73,7 @@ public class AuthService {
             if (Boolean.TRUE.equals(existingUser.getIsVerify())) {
                 throw new RuntimeException("Email already verified");
             }
-            createAndSendOtp(existingUser);
+            sendOtpToRegister(existingUser);
             return;
         }
 
@@ -82,7 +91,7 @@ public class AuthService {
                 .build();
 
         appUserRepo.save(user);
-        createAndSendOtp(user);
+        sendOtpToRegister(user);
     }
 
     @Transactional
@@ -111,4 +120,35 @@ public class AuthService {
         user.setIsVerify(true);
         emailOtpRepo.deleteByUser(user);
     }
+
+    //Login
+    public LoginResponse login(LoginRequest request) {
+        AppUser user = appUserRepo.findByUsernameOrEmail(request.getUsernameOrEmail(), request.getUsernameOrEmail())
+                .orElseThrow(() -> new RuntimeException("Username or email not found"));
+
+        if(!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new RuntimeException("Username or password incorrect");
+        }
+
+        if(!Boolean.TRUE.equals(user.getIsVerify())) {
+            throw new RuntimeException("Your account is not verify");
+        }
+
+        String accessToken = jwtService.generateAccessToken(user.getEmail());
+        String refreshToken = jwtService.generateRefreshToken(user.getEmail());
+        Timestamp expiry = new Timestamp(
+                System.currentTimeMillis() + jwtService.getRefreshExpiryTime()
+        );
+
+        RefreshToken token = RefreshToken.builder()
+                .token(refreshToken)
+                .user(user)
+                .expiry(expiry)
+                .isRevoked(false)
+                .build();
+
+        refreshTokenRepo.save(token);
+        return new LoginResponse(user.getFullName() ,accessToken, refreshToken);
+    }
+
 }
