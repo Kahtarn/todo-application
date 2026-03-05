@@ -1,5 +1,7 @@
 package com.example.servertodo.service;
 
+import com.example.servertodo.dto.auth.forgotpassword.SendEmailRequest;
+import com.example.servertodo.dto.auth.forgotpassword.VerifyOtpRequest;
 import com.example.servertodo.dto.auth.login.LoginRequest;
 import com.example.servertodo.dto.auth.login.LoginResponse;
 import com.example.servertodo.dto.auth.register.EmailVerifyRequest;
@@ -151,4 +153,66 @@ public class AuthService {
         return new LoginResponse(user.getFullName() ,accessToken, refreshToken);
     }
 
+
+    //Forgot password
+    private void sendOtpToForgotPassword(AppUser user) {
+        Optional<EmailOtp> lastOtp = emailOtpRepo.findTopByUserOrderByIdDesc(user);
+
+        if (lastOtp.isPresent()) {
+            long createdTime = lastOtp.get().getExpiryTime().getTime() - (5 * 60 * 1000);
+            long now = System.currentTimeMillis();
+
+            if (now - createdTime < 30_000) {
+                throw new RuntimeException("Please wait 30 seconds before requesting new OTP");
+            }
+            emailOtpRepo.deleteByUser(user);
+        }
+        String otp = generateOtp();
+        long expiry = System.currentTimeMillis() + (5 * 60 * 1000);
+
+        EmailOtp emailOtp = EmailOtp.builder()
+                .otpCode(otp)
+                .expiryTime(new Timestamp(expiry))
+                .user(user)
+                .build();
+
+        emailOtpRepo.save(emailOtp);
+        javaMailService.sendOtpToForgotPassword(user.getEmail(), otp);
+    }
+
+    public void sendEmailToResetPassword(SendEmailRequest request) {
+        AppUser user = appUserRepo.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if(!Boolean.TRUE.equals(user.getIsVerify())) {
+            throw new RuntimeException("This account is not verified");
+        }
+
+        sendOtpToForgotPassword(user);
+    }
+
+    @Transactional
+    public void resetPassword(VerifyOtpRequest request) {
+
+        AppUser user = appUserRepo.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        EmailOtp emailOtp = emailOtpRepo
+                .findTopByUserOrderByIdDesc(user)
+                .orElseThrow(() -> new RuntimeException("OTP not found"));
+
+        if (emailOtp.getExpiryTime()
+                .before(new Timestamp(System.currentTimeMillis()))) {
+
+            throw new RuntimeException("OTP expired");
+        }
+
+        if (!emailOtp.getOtpCode().equals(request.getOtpCode())) {
+            throw new RuntimeException("Invalid OTP");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        emailOtpRepo.deleteByUser(user);
+        refreshTokenRepo.deleteByUser(user);
+    }
 }

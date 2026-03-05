@@ -1,6 +1,8 @@
 package com.example.servertodo.controller;
 
 import com.example.servertodo.dto.ApiResponse;
+import com.example.servertodo.dto.auth.forgotpassword.SendEmailRequest;
+import com.example.servertodo.dto.auth.forgotpassword.VerifyOtpRequest;
 import com.example.servertodo.dto.auth.login.LoginRequest;
 import com.example.servertodo.dto.auth.login.LoginResponse;
 import com.example.servertodo.dto.auth.register.EmailVerifyRequest;
@@ -36,5 +38,17 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> login(@Valid @RequestBody LoginRequest request) {
         LoginResponse response = authService.login(request);
         return ResponseEntity.ok(ApiResponse.success("Login successfully", response));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<String>> forgotPassword(@Valid @RequestBody SendEmailRequest request) {
+        authService.sendEmailToResetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("OTP code was send, check your mail"));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<String>> resetPassowrd(@Valid @RequestBody VerifyOtpRequest request) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.success("Reset password successfully"));
     }
 }
