@@ -5,16 +5,14 @@ import com.example.servertodo.dto.auth.forgotpassword.SendEmailRequest;
 import com.example.servertodo.dto.auth.forgotpassword.VerifyOtpRequest;
 import com.example.servertodo.dto.auth.login.LoginRequest;
 import com.example.servertodo.dto.auth.login.LoginResponse;
+import com.example.servertodo.dto.auth.logout.LogoutRequest;
 import com.example.servertodo.dto.auth.register.EmailVerifyRequest;
 import com.example.servertodo.dto.auth.register.RegisterRequest;
 import com.example.servertodo.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -47,8 +45,14 @@ public class AuthController {
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<String>> resetPassowrd(@Valid @RequestBody VerifyOtpRequest request) {
+    public ResponseEntity<ApiResponse<String>> resetPassword(@Valid @RequestBody VerifyOtpRequest request) {
         authService.resetPassword(request);
         return ResponseEntity.ok(ApiResponse.success("Reset password successfully"));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<String>> logout(@RequestBody LogoutRequest request) {
+        authService.logout(request);
+        return ResponseEntity.ok(ApiResponse.success("Logout successfully"));
     }
 }

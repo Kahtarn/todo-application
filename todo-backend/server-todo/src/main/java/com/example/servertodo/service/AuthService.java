@@ -4,6 +4,7 @@ import com.example.servertodo.dto.auth.forgotpassword.SendEmailRequest;
 import com.example.servertodo.dto.auth.forgotpassword.VerifyOtpRequest;
 import com.example.servertodo.dto.auth.login.LoginRequest;
 import com.example.servertodo.dto.auth.login.LoginResponse;
+import com.example.servertodo.dto.auth.logout.LogoutRequest;
 import com.example.servertodo.dto.auth.register.EmailVerifyRequest;
 import com.example.servertodo.dto.auth.register.RegisterRequest;
 import com.example.servertodo.entity.AppUser;
@@ -214,5 +215,15 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         emailOtpRepo.deleteByUser(user);
         refreshTokenRepo.deleteByUser(user);
+    }
+
+    //Logout
+    @Transactional
+    public void logout(LogoutRequest request) {
+        RefreshToken token = refreshTokenRepo.findByToken(request.getRefreshToken())
+                .orElseThrow(() -> new RuntimeException("Refresh token not found"));
+
+        token.setIsRevoked(true);
+        refreshTokenRepo.save(token);
     }
 }
